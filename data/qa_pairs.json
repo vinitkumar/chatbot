@@ -1,0 +1,30 @@
+{
+  "categories": {
+    "general_knowledge": [
+      {
+        "patterns": ["what is the capital of France|capital France|Paris capital"],
+        "response": "Paris is the capital city of France.",
+        "context": "geography"
+      },
+      {
+        "patterns": ["who wrote Shakespeare|Shakespeare author"],
+        "response": "William Shakespeare was an English playwright, poet, and actor, often called England's national poet.",
+        "context": "literature"
+      }
+    ],
+    "technology": [
+      {
+        "patterns": ["what is blockchain|explain blockchain"],
+        "response": "Blockchain is a decentralized, distributed ledger technology that records transactions across multiple computers securely.",
+        "context": "technology"
+      }
+    ],
+    "programming": [
+      {
+        "patterns": ["what is a variable|explain variables"],
+        "response": "A variable is a storage location paired with an associated symbolic name that contains some known or unknown quantity or information.",
+        "context": "programming_basics"
+      }
+    ]
+  }
+} 

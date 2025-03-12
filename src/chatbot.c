@@ -8,6 +8,7 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 #include <unistd.h>
+#include <sqlite3.h>
 #include "chatbot.h"
 
 // ANSI Color codes for prettier output
@@ -23,6 +24,23 @@
 #define CONFIG_FILE "chatbot_responses.txt"
 #define LOG_FILE "chatbot.log"
 #define TYPING_DELAY 50000 // 50ms delay between characters
+#define DB_FILE "chatbot.db"
+#define CREATE_RESPONSES_TABLE "\
+    CREATE TABLE IF NOT EXISTS responses ( \
+        id INTEGER PRIMARY KEY AUTOINCREMENT, \
+        pattern TEXT NOT NULL, \
+        response TEXT NOT NULL, \
+        context TEXT, \
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP \
+    );"
+
+#define CREATE_CONVERSATIONS_TABLE "\
+    CREATE TABLE IF NOT EXISTS conversations ( \
+        id INTEGER PRIMARY KEY AUTOINCREMENT, \
+        user_input TEXT NOT NULL, \
+        bot_response TEXT NOT NULL, \
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP \
+    );"
 
 // Forward declarations of structures
 struct entry_s {
@@ -42,6 +60,7 @@ typedef struct hashtable_s hashtable_t;
 typedef struct {
     char *messages[MAX_CONTEXT_LENGTH];
     int current;
+    sqlite3 *db;  // SQLite database connection
 } Context;
 
 // Function prototypes
@@ -63,6 +82,11 @@ void save_conversation_history(const char *filename);
 void print_help(void);
 void print_welcome_message(void);
 char* generate_response(hashtable_t *hashtable, const char *input);
+void init_database(sqlite3 **db);
+void add_response(sqlite3 *db, const char *pattern, const char *response, const char *context);
+char* get_response_from_db(sqlite3 *db, const char *input);
+void log_conversation_to_db(sqlite3 *db, const char *user_input, const char *response);
+void close_database(sqlite3 *db);
 
 // Helper function to print welcome message
 void print_welcome_message(void) {
@@ -353,27 +377,30 @@ void print_help(void) {
 }
 
 int main(void) {
-    char line[LINELENGTH];
-    hashtable_t *hashtable = NULL;
+    char line[MAX_RESPONSE_LENGTH];
+    sqlite3 *db = NULL;
+    Context ctx = {0};
     
-    // Create and initialize hashtable
-    hashtable = ht_create(65536);
-    if (hashtable == NULL) {
-        fprintf(stderr, "%sError: Failed to create chatbot memory%s\n", COLOR_RED, COLOR_RESET);
+    // Initialize database
+    init_database(&db);
+    if (!db) {
+        fprintf(stderr, "%sError: Failed to connect to database%s\n", COLOR_RED, COLOR_RESET);
         return 1;
     }
+    ctx.db = db;
 
-    // Initialize responses with more natural language
-    ht_set(hashtable, "hi", "Hello! How can I help you today?");
-    ht_set(hashtable, "hey", "Hey there! What's on your mind?");
-    ht_set(hashtable, "hello", "Hi! Nice to meet you!");
-    ht_set(hashtable, "how", "I'm doing well, thanks for asking! How about you?");
-    ht_set(hashtable, "what", "That's an interesting question! Let me think...");
-    ht_set(hashtable, "why", "That's a good question! I think it's because...");
-    ht_set(hashtable, "python", "Python is a great programming language! I love its simplicity and power.");
-    ht_set(hashtable, "programming", "Programming is fun! I especially enjoy helping people learn to code.");
-    ht_set(hashtable, "bye", "Goodbye! Have a great day!");
-    ht_set(hashtable, "thanks", "You're welcome! Let me know if you need anything else.");
+    // Initialize default responses
+    add_response(db, "hi|hey|hello", "Hello! How can I help you today?", "greeting");
+    add_response(db, "how are you", "I'm doing well, thanks for asking! How about you?", "greeting");
+    add_response(db, "what", "That's an interesting question! Let me think...", "question");
+    add_response(db, "why", "That's a good question! I think it's because...", "question");
+    add_response(db, "python", "Python is a great programming language! I love its simplicity and power.", "programming");
+    add_response(db, "programming", "Programming is fun! I especially enjoy helping people learn to code.", "programming");
+    add_response(db, "bye|goodbye|quit", "Goodbye! Have a great day!", "farewell");
+    add_response(db, "thanks|thank you", "You're welcome! Let me know if you need anything else.", "gratitude");
+
+    // Initialize context
+    init_context(&ctx);
 
     // Display welcome message
     print_welcome_message();
@@ -384,7 +411,7 @@ int main(void) {
         printf("\n%s➜ %s", COLOR_GREEN, COLOR_RESET);
         
         // Get input with error handling
-        if (fgets(line, LINELENGTH, stdin) == NULL) {
+        if (fgets(line, sizeof(line), stdin) == NULL) {
             printf("\n%sGoodbye!%s\n", COLOR_CYAN, COLOR_RESET);
             break;
         }
@@ -403,12 +430,131 @@ int main(void) {
             break;
         }
 
-        // Generate and print response
-        char *response = generate_response(hashtable, line);
-        printf("%s❯ %s%s\n", COLOR_BLUE, response, COLOR_RESET);
+        // Handle special commands
+        if (line[0] == '/') {
+            if (strcmp(line, "/help") == 0) {
+                print_help();
+                continue;
+            } else if (strcmp(line, "/history") == 0) {
+                // Show recent conversations
+                sqlite3_stmt *stmt;
+                const char *sql = "SELECT user_input, bot_response, timestamp FROM conversations "
+                                "ORDER BY timestamp DESC LIMIT 5";
+                
+                if (sqlite3_prepare_v2(db, sql, -1, &stmt, 0) == SQLITE_OK) {
+                    printf("\n%sRecent Conversations:%s\n", COLOR_CYAN, COLOR_RESET);
+                    while (sqlite3_step(stmt) == SQLITE_ROW) {
+                        const char *user_input = (const char*)sqlite3_column_text(stmt, 0);
+                        const char *bot_response = (const char*)sqlite3_column_text(stmt, 1);
+                        const char *timestamp = (const char*)sqlite3_column_text(stmt, 2);
+                        printf("%s[%s]%s\n", COLOR_YELLOW, timestamp, COLOR_RESET);
+                        printf("%sUser:%s %s\n", COLOR_GREEN, COLOR_RESET, user_input);
+                        printf("%sBot:%s %s\n\n", COLOR_BLUE, COLOR_RESET, bot_response);
+                    }
+                }
+                sqlite3_finalize(stmt);
+                continue;
+            }
+        }
+
+        // Get response from database and display with typing effect
+        char *response = get_response_from_db(db, line);
+        printf("%s❯ %s", COLOR_BLUE, COLOR_RESET);
+        print_with_typing_effect(response);
+        printf("\n");
+
+        // Log conversation
+        log_conversation_to_db(db, line, response);
+        add_to_context(&ctx, line);
     }
 
     // Cleanup
-    ht_destroy(hashtable);
+    free_context(&ctx);
+    if (db) {
+        sqlite3_close(db);
+    }
     return 0;
+}
+
+// Initialize database connection
+void init_database(sqlite3 **db) {
+    int rc = sqlite3_open(DB_FILE, db);
+    if (rc) {
+        fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(*db));
+        return;
+    }
+
+    char *err_msg = 0;
+    rc = sqlite3_exec(*db, CREATE_RESPONSES_TABLE, 0, 0, &err_msg);
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "SQL error: %s\n", err_msg);
+        sqlite3_free(err_msg);
+    }
+
+    rc = sqlite3_exec(*db, CREATE_CONVERSATIONS_TABLE, 0, 0, &err_msg);
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "SQL error: %s\n", err_msg);
+        sqlite3_free(err_msg);
+    }
+}
+
+// Add a new response pattern to the database
+void add_response(sqlite3 *db, const char *pattern, const char *response, const char *context) {
+    sqlite3_stmt *stmt;
+    const char *sql = "INSERT INTO responses (pattern, response, context) VALUES (?, ?, ?)";
+    
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, pattern, -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 2, response, -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 3, context, -1, SQLITE_STATIC);
+        
+        sqlite3_step(stmt);
+    }
+    sqlite3_finalize(stmt);
+}
+
+// Get response using fuzzy pattern matching
+char* get_response_from_db(sqlite3 *db, const char *input) {
+    static char response[MAX_RESPONSE_LENGTH];
+    sqlite3_stmt *stmt;
+    const char *sql = "SELECT response FROM responses WHERE lower(?) LIKE '%' || lower(pattern) || '%' "
+                     "OR lower(pattern) LIKE '%' || lower(?) || '%' "
+                     "ORDER BY length(pattern) DESC LIMIT 1";
+    
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, input, -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 2, input, -1, SQLITE_STATIC);
+        
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
+            strncpy(response, (const char*)sqlite3_column_text(stmt, 0), MAX_RESPONSE_LENGTH - 1);
+            response[MAX_RESPONSE_LENGTH - 1] = '\0';
+        } else {
+            strncpy(response, "I'm not sure how to respond to that. Could you rephrase or ask something else?", MAX_RESPONSE_LENGTH - 1);
+        }
+    }
+    sqlite3_finalize(stmt);
+    return response;
+}
+
+// Log conversation to database
+void log_conversation_to_db(sqlite3 *db, const char *user_input, const char *response) {
+    sqlite3_stmt *stmt;
+    const char *sql = "INSERT INTO conversations (user_input, bot_response) VALUES (?, ?)";
+    
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, user_input, -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 2, response, -1, SQLITE_STATIC);
+        sqlite3_step(stmt);
+    }
+    sqlite3_finalize(stmt);
+}
+
+// Close database connection
+void close_database(sqlite3 *db) {
+    if (db) {
+        sqlite3_close(db);
+    }
 }
