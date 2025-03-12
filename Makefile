@@ -1,32 +1,25 @@
 CC = gcc
-CFLAGS = -std=c11 -Wall -Wextra -pedantic
-SQLITE_CFLAGS = $(shell pkg-config --cflags sqlite3)
-SQLITE_LIBS = $(shell pkg-config --libs sqlite3)
-JANSSON_CFLAGS = $(shell pkg-config --cflags jansson)
-JANSSON_LIBS = $(shell pkg-config --libs jansson)
+CFLAGS = -std=c11 -Wall -Wextra -pedantic -I./include
+LDFLAGS = -lsqlite3
 
-CFLAGS += $(SQLITE_CFLAGS) $(JANSSON_CFLAGS)
-LDFLAGS = $(SQLITE_LIBS) $(JANSSON_LIBS)
+# Source files
+SRCS = src/chatbot.c src/db.c src/context.c src/ui.c
+OBJS = $(SRCS:.c=.o)
 
+# Target executable
 TARGET = chat
-SEEDER = seed_db
-SRCS = src/chatbot.c
-SEEDER_SRCS = src/seed_db.c
 
-.PHONY: all clean seed
+.PHONY: all clean
 
-all: $(TARGET) seed
+all: clean $(TARGET)
 
-$(TARGET): $(SRCS)
-	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
+$(TARGET): $(OBJS)
+	$(CC) $(OBJS) -o $(TARGET) $(LDFLAGS)
 
-$(SEEDER): $(SEEDER_SRCS)
-	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
-
-seed: $(SEEDER)
-	./$(SEEDER)
+%.o: %.c include/chatbot.h
+	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f $(TARGET) $(SEEDER)
+	rm -f $(TARGET) $(OBJS)
 	rm -f chatbot.db
 	rm -f chatbot.log
