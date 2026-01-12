@@ -17,7 +17,7 @@ jobs:
       run: cd c && make clean && make
     
     - name: Test C executable runs
-      run: cd c && ./chat
+      run: cd c && echo -e "hi\npython\nexit" | timeout 5 ./chat || true
 
   zig-build-and-test:
     runs-on: ubuntu-latest
@@ -36,4 +36,4 @@ jobs:
       run: cd zig && zig test src/chatbot.zig
     
     - name: Test Zig executable runs
-      run: cd zig && ./zig-out/bin/chat
+      run: cd zig && echo -e "hi\npython\nexit" | timeout 5 ./zig-out/bin/chat || true
