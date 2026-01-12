@@ -1,8 +1,8 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <ctype.h>
 #include <limits.h>
-#include <strings.h>
 #include "chatbot.h"
 
 // hash table implementation from here
