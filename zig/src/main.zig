@@ -1,12 +1,17 @@
 const std = @import("std");
 const chatbot = @import("chatbot.zig");
+const c = @cImport({
+    @cInclude("stdio.h");
+    @cInclude("string.h");
+    @cInclude("ctype.h");
+});
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    std.debug.print("$ Chatbot v1.0.0!\n", .{});
+    _ = c.printf("$ Chatbot v1.0.0!\n", );
 
     // Create hash table
     var ht = try chatbot.HashTable.create(allocator, 65536);
@@ -18,21 +23,25 @@ pub fn main() !void {
     try ht.set("hear", "What you heard is right");
     try ht.set("python", "Yo, I love Python");
     try ht.set("light", "I like light");
-    try ht.set("what", "It is clear, ain't it?");
+    try ht.set("What", "It is clear, ain't it?");
 
-    // Hardcoded test inputs
-    const inputs = [_][]const u8{ "hi", "python", "what", "exit" };
+    var buf: [chatbot.LineLength]u8 = undefined;
 
-    for (inputs) |input| {
-        std.debug.print("\n$ (user) {s}\n", .{input});
+    while (true) {
+        _ = c.printf("\n$ (user) ", );
 
-        const trimmed = std.mem.trim(u8, input, " \t\r\n");
-        if (trimmed.len == 0) continue;
+        const result = c.fgets(&buf, chatbot.LineLength, c.stdin());
+        if (result == null) break;
+
+        if (@as(usize, c.strlen(&buf)) <= 1) break;
+
+        const line = buf[0..c.strlen(&buf)];
+        const trimmed = std.mem.trim(u8, line, " \t\r\n");
+        if (trimmed.len == 0) break;
 
         var word_iter = std.mem.tokenizeAny(u8, trimmed, chatbot.SeparatorChars);
 
         while (word_iter.next()) |word| {
-            // Convert to lowercase for comparison
             const lower_word = try allocator.alloc(u8, word.len);
             defer allocator.free(lower_word);
 
@@ -41,14 +50,13 @@ pub fn main() !void {
             }
 
             if (std.mem.eql(u8, lower_word, "exit")) {
-                std.debug.print("\n$ (chatbot) Goodbye!\n", .{});
                 return;
             }
 
             if (ht.get(lower_word)) |response| {
-                std.debug.print("\n$ (chatbot) {s}\n", .{response});
+                _ = c.printf("\n$ (chatbot) %s\n", response.ptr);
             } else {
-                std.debug.print("\n$ (chatbot) {s}\n", .{"Sorry, I don't know what to say about that"});
+                _ = c.printf("\n$ (chatbot) %s\n", "Sorry, I don't know what to say about that");
             }
         }
     }
