@@ -1,3 +1,6 @@
+// Enable POSIX functions (strdup, strncasecmp, etc.)
+#define _POSIX_C_SOURCE 200809L
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
