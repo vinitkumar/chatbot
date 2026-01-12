@@ -7,7 +7,8 @@ on:
     branches: [ main, zig-port ]
 
 jobs:
-  c-build:
+  c-build-gcc:
+    name: C Build (GCC)
     runs-on: ubuntu-latest
     
     steps:
@@ -16,21 +17,45 @@ jobs:
     - name: Check GCC version
       run: gcc --version
     
-    - name: Build C versions (C17 and C23)
-      run: cd c && make clean && make
+    - name: Build with GCC (C17 and C23)
+      run: cd c && make clean && make gcc-builds
     
-    - name: Test C17 executable runs
-      run: cd c && echo -e "hi\npython\nexit" | timeout 5 ./chat-c17 || true
+    - name: Test GCC C17 executable
+      run: cd c && echo -e "hi\npython\nexit" | timeout 5 ./chat-gcc-c17 || true
     
-    - name: Test C23 executable runs
-      run: cd c && echo -e "hi\npython\nexit" | timeout 5 ./chat-c23 || true
+    - name: Test GCC C23 executable
+      run: cd c && echo -e "hi\npython\nexit" | timeout 5 ./chat-gcc-c23 || true
     
-    - name: Compare binary sizes
-      run: |
-        echo "Binary sizes:"
-        ls -lh c/chat-c17 c/chat-c23
+    - name: Show binary sizes
+      run: ls -lh c/chat-gcc-*
+
+  c-build-clang:
+    name: C Build (Clang)
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Clang
+      run: sudo apt-get update && sudo apt-get install -y clang
+    
+    - name: Check Clang version
+      run: clang --version
+    
+    - name: Build with Clang (C17 and C23)
+      run: cd c && make clean && make clang-builds
+    
+    - name: Test Clang C17 executable
+      run: cd c && echo -e "hi\npython\nexit" | timeout 5 ./chat-clang-c17 || true
+    
+    - name: Test Clang C23 executable
+      run: cd c && echo -e "hi\npython\nexit" | timeout 5 ./chat-clang-c23 || true
+    
+    - name: Show binary sizes
+      run: ls -lh c/chat-clang-*
 
   zig-build-and-test:
+    name: Zig Build & Test
     runs-on: ubuntu-latest
     
     steps:

@@ -1,62 +1,82 @@
 # Chatbot Build & Runtime Benchmark Results
 
-Benchmark comparing C (C17 and C23 standards) and Zig implementations of the chatbot.
+Benchmark comparing C (GCC and Clang, C17 and C23 standards) and Zig implementations.
 
 **System:** macOS arm64  
 **Date:** 2026-01-12
 
-## Build Results
+## Compiler Versions (Local)
 
-| Metric | C17 | C23 | Zig | Notes |
-|--------|-----|-----|-----|-------|
-| Build Time | ~90ms | ~90ms | ~710ms | Zig ~8x slower |
-| Executable Size | 33K | 33K | 1.3M | Zig ~40x larger |
+| Compiler | Version |
+|----------|---------|
+| GCC (macOS) | Apple Clang 17.0.0 (gcc is aliased to clang) |
+| Clang | Homebrew Clang 21.1.8 |
+| Zig | 0.15.2 |
 
 ## Runtime Results
 
 | Version | Execution Time | Relative |
 |---------|---------------|----------|
-| C17 | 147ms | 1.00x |
-| C23 | 197ms | 1.34x |
-| Zig | 459ms | 3.12x |
+| GCC C17 | 228ms | 2.23x |
+| GCC C23 | 102ms | 1.00x (fastest) |
+| Clang C17 | 107ms | 1.04x |
+| Clang C23 | 106ms | 1.03x |
+| Zig | 628ms | 6.15x |
+
+## Binary Sizes
+
+| Version | Size |
+|---------|------|
+| GCC C17 | 33K |
+| GCC C23 | 33K |
+| Clang C17 | 33K |
+| Clang C23 | 33K |
+| Zig | 1.3M |
 
 ## Analysis
 
-### Build Time
-- **C (C17/C23)**: Fast compilation using GCC with minimal optimization
-- **Zig**: Longer compilation time due to more comprehensive compiler
+### C Compilers
+- **GCC C23** was fastest in this run (times vary between runs)
+- **Clang** produces consistently fast binaries across C17/C23
+- On macOS, `gcc` is actually Apple Clang; real GCC is tested on CI (Ubuntu)
 
-### Executable Size
-- **C (33K)**: Small, minimal runtime, links against system libc
-- **Zig (1.3M)**: Larger due to embedded standard library and runtime
-
-### Runtime Performance
-- **C17** is the fastest, likely due to mature compiler optimizations
-- **C23** is slightly slower (may vary based on compiler version)
-- **Zig** is slower due to:
+### Zig
+- Slower due to:
   - GeneralPurposeAllocator overhead vs C's stack allocation
-  - New Zig 0.15 buffered I/O system overhead
-  - Additional safety checks
+  - Zig 0.15 buffered I/O system overhead
+  - Additional runtime safety checks
+- Much larger binary (embeds stdlib, no libc dependency)
+
+### Binary Size
+- All C versions: 33K (links against system libc)
+- Zig: 1.3M (self-contained, no external dependencies)
 
 ## Build Configuration
 
-- **C17**: `gcc -std=c17 -Wall -Wextra -pedantic`
-- **C23**: `gcc -std=c23 -Wall -Wextra -pedantic` (falls back to `-std=c2x` on older compilers)
-- **Zig**: `zig build` (debug mode, Zig 0.15.2)
+| Compiler | Flags |
+|----------|-------|
+| GCC C17 | `gcc -std=c17 -Wall -Wextra -pedantic` |
+| GCC C23 | `gcc -std=c23 -Wall -Wextra -pedantic` |
+| Clang C17 | `clang -std=c17 -Wall -Wextra -pedantic` |
+| Clang C23 | `clang -std=c23 -Wall -Wextra -pedantic` |
+| Zig | `zig build` (debug mode) |
 
 ## Notes
 
 - All versions produce identical output
-- Times are from cold builds (no cache)
-- Runtime measured with same test input file
-- Zig uses pure Zig I/O (no libc linking)
+- C23 falls back to `-std=c2x` on older compilers
+- Times vary between runs; relative performance is more meaningful
+- CI tests both GCC and Clang on Ubuntu
 
 ## Running the Benchmarks
 
 ```bash
-# Full runtime benchmark
+# Full runtime benchmark (all compilers)
 ./run_benchmarks.sh
 
 # Build-only benchmark
 ./benchmark.sh
+
+# Show detected compilers
+cd c && make info
 ```
