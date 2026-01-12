@@ -2,6 +2,19 @@
 
 A simple keyword-based chatbot with implementations in both C and Zig.
 
+## Benchmark
+
+See [BENCHMARK.md](BENCHMARK.md) for build time and executable size comparisons.
+
+Quick summary:
+- **C**: 93ms build time, 33K executable
+- **Zig**: 710ms build time, 1.3M executable
+
+To run the benchmark:
+```bash
+./benchmark.sh
+```
+
 ## Building
 
 ### C Version
