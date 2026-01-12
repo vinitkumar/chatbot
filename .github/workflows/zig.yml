@@ -1,4 +1,4 @@
-name: Zig Build & Tests
+name: Build & Tests
 
 on:
   push:
@@ -7,7 +7,19 @@ on:
     branches: [ main, zig-port ]
 
 jobs:
-  build-and-test:
+  c-build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Build C version
+      run: cd c && make clean && make
+    
+    - name: Test C executable runs
+      run: cd c && ./chat
+
+  zig-build-and-test:
     runs-on: ubuntu-latest
     
     steps:
@@ -17,11 +29,11 @@ jobs:
       with:
         version: 0.15.2
     
-    - name: Build chatbot
-      run: zig build-exe src/main.zig -femit-bin=zig-out/bin/chat
+    - name: Build Zig chatbot
+      run: cd zig && mkdir -p zig-out/bin && zig build-exe src/main.zig -femit-bin=zig-out/bin/chat
     
-    - name: Run tests
-      run: zig test src/chatbot.zig
+    - name: Run Zig tests
+      run: cd zig && zig test src/chatbot.zig
     
-    - name: Test executable runs
-      run: ./zig-out/bin/chat
+    - name: Test Zig executable runs
+      run: cd zig && ./zig-out/bin/chat
