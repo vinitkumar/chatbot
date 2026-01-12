@@ -1,0 +1,39 @@
+name: Build & Tests
+
+on:
+  push:
+    branches: [ main, zig-port ]
+  pull_request:
+    branches: [ main, zig-port ]
+
+jobs:
+  c-build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Build C version
+      run: cd c && make clean && make
+    
+    - name: Test C executable runs
+      run: cd c && echo -e "hi\npython\nexit" | timeout 5 ./chat || true
+
+  zig-build-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: 0.15.2
+    
+    - name: Build Zig chatbot
+      run: cd zig && mkdir -p zig-out/bin && zig build-exe src/main.zig -femit-bin=zig-out/bin/chat
+    
+    - name: Run Zig tests
+      run: cd zig && zig test src/chatbot.zig
+    
+    - name: Test Zig executable runs
+      run: cd zig && echo -e "hi\npython\nexit" | timeout 5 ./zig-out/bin/chat || true

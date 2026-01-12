@@ -23,3 +23,7 @@ chat
 *.i*86
 *.x86_64
 *.hex
+
+# Zig build artifacts
+.zig-cache/
+zig-out/
