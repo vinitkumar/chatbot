@@ -33,9 +33,9 @@ pub fn main() !void {
         try stdout.interface.flush();
 
         // Read line using Zig 0.15 delimiter API
-        const line = stdin.interface.takeDelimiterExclusive('\n') catch |err| {
+        // Use takeDelimiter which returns null on EOF with empty remaining
+        const line = stdin.interface.takeDelimiter('\n') catch |err| {
             switch (err) {
-                error.EndOfStream => break,
                 error.StreamTooLong => {
                     // Line too long, skip it
                     continue;
@@ -44,8 +44,10 @@ pub fn main() !void {
             }
         };
 
-        const trimmed = std.mem.trim(u8, line, " \t\r\n");
-        if (trimmed.len == 0) break;
+        if (line == null) break;
+
+        const trimmed = std.mem.trim(u8, line.?, " \t\r\n");
+        if (trimmed.len == 0) continue; // Empty line, keep going
 
         var word_iter = std.mem.tokenizeAny(u8, trimmed, chatbot.SeparatorChars);
 

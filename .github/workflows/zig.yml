@@ -7,19 +7,55 @@ on:
     branches: [ main, zig-port ]
 
 jobs:
-  c-build:
+  c-build-gcc:
+    name: C Build (GCC)
     runs-on: ubuntu-latest
     
     steps:
     - uses: actions/checkout@v4
     
-    - name: Build C version
-      run: cd c && make clean && make
+    - name: Check GCC version
+      run: gcc --version
     
-    - name: Test C executable runs
-      run: cd c && echo -e "hi\npython\nexit" | timeout 5 ./chat || true
+    - name: Build with GCC (C17 and C23)
+      run: cd c && make clean && make gcc-builds
+    
+    - name: Test GCC C17 executable
+      run: cd c && echo -e "hi\npython\nexit" | timeout 5 ./chat-gcc-c17 || true
+    
+    - name: Test GCC C23 executable
+      run: cd c && echo -e "hi\npython\nexit" | timeout 5 ./chat-gcc-c23 || true
+    
+    - name: Show binary sizes
+      run: ls -lh c/chat-gcc-*
+
+  c-build-clang:
+    name: C Build (Clang)
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Clang
+      run: sudo apt-get update && sudo apt-get install -y clang
+    
+    - name: Check Clang version
+      run: clang --version
+    
+    - name: Build with Clang (C17 and C23)
+      run: cd c && make clean && make clang-builds
+    
+    - name: Test Clang C17 executable
+      run: cd c && echo -e "hi\npython\nexit" | timeout 5 ./chat-clang-c17 || true
+    
+    - name: Test Clang C23 executable
+      run: cd c && echo -e "hi\npython\nexit" | timeout 5 ./chat-clang-c23 || true
+    
+    - name: Show binary sizes
+      run: ls -lh c/chat-clang-*
 
   zig-build-and-test:
+    name: Zig Build & Test
     runs-on: ubuntu-latest
     
     steps:
@@ -30,10 +66,13 @@ jobs:
         version: 0.15.2
     
     - name: Build Zig chatbot
-      run: cd zig && mkdir -p zig-out/bin && zig build-exe src/main.zig -femit-bin=zig-out/bin/chat
+      run: cd zig && zig build
     
     - name: Run Zig tests
-      run: cd zig && zig test src/chatbot.zig
+      run: cd zig && zig build test
     
     - name: Test Zig executable runs
       run: cd zig && echo -e "hi\npython\nexit" | timeout 5 ./zig-out/bin/chat || true
+    
+    - name: Show binary size
+      run: ls -lh zig/zig-out/bin/chat

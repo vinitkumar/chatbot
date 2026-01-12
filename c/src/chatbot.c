@@ -1,8 +1,12 @@
+// Enable POSIX/GNU extensions (strdup, strncasecmp, etc.)
+// _GNU_SOURCE is needed because -std=c17 disables extensions by default
+#define _GNU_SOURCE
+
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <ctype.h>
 #include <limits.h>
-#include <strings.h>
 #include "chatbot.h"
 
 // hash table implementation from here
