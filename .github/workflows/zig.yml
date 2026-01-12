@@ -13,11 +13,22 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    - name: Build C version
+    - name: Check GCC version
+      run: gcc --version
+    
+    - name: Build C versions (C17 and C23)
       run: cd c && make clean && make
     
-    - name: Test C executable runs
-      run: cd c && echo -e "hi\npython\nexit" | timeout 5 ./chat || true
+    - name: Test C17 executable runs
+      run: cd c && echo -e "hi\npython\nexit" | timeout 5 ./chat-c17 || true
+    
+    - name: Test C23 executable runs
+      run: cd c && echo -e "hi\npython\nexit" | timeout 5 ./chat-c23 || true
+    
+    - name: Compare binary sizes
+      run: |
+        echo "Binary sizes:"
+        ls -lh c/chat-c17 c/chat-c23
 
   zig-build-and-test:
     runs-on: ubuntu-latest
@@ -30,10 +41,13 @@ jobs:
         version: 0.15.2
     
     - name: Build Zig chatbot
-      run: cd zig && mkdir -p zig-out/bin && zig build-exe src/main.zig -femit-bin=zig-out/bin/chat
+      run: cd zig && zig build
     
     - name: Run Zig tests
-      run: cd zig && zig test src/chatbot.zig
+      run: cd zig && zig build test
     
     - name: Test Zig executable runs
       run: cd zig && echo -e "hi\npython\nexit" | timeout 5 ./zig-out/bin/chat || true
+    
+    - name: Show binary size
+      run: ls -lh zig/zig-out/bin/chat
