@@ -1,0 +1,27 @@
+name: Zig Build & Tests
+
+on:
+  push:
+    branches: [ main, zig-port ]
+  pull_request:
+    branches: [ main, zig-port ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: 0.15.2
+    
+    - name: Build chatbot
+      run: zig build-exe src/main.zig -femit-bin=zig-out/bin/chat
+    
+    - name: Run tests
+      run: zig test src/chatbot.zig
+    
+    - name: Test executable runs
+      run: ./zig-out/bin/chat
