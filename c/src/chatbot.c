@@ -1,5 +1,6 @@
-// Enable POSIX functions (strdup, strncasecmp, etc.)
-#define _POSIX_C_SOURCE 200809L
+// Enable POSIX/GNU extensions (strdup, strncasecmp, etc.)
+// _GNU_SOURCE is needed because -std=c17 disables extensions by default
+#define _GNU_SOURCE
 
 #include <stdlib.h>
 #include <stdio.h>
