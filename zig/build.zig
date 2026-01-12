@@ -1,11 +1,16 @@
 const std = @import("std");
 
 pub fn build(b: *std.Build) void {
+    const target = b.standardTargetOptions(.{});
+    const optimize = b.standardOptimizeOption(.{});
+
     const exe = b.addExecutable(.{
         .name = "chat",
-        .root_module = .{
+        .root_module = b.createModule(.{
             .root_source_file = b.path("src/main.zig"),
-        },
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     b.installArtifact(exe);
@@ -19,7 +24,11 @@ pub fn build(b: *std.Build) void {
     run_step.dependOn(&run_cmd.step);
 
     const tests = b.addTest(.{
-        .root_source_file = b.path("src/chatbot.zig"),
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/chatbot.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     const run_test = b.addRunArtifact(tests);

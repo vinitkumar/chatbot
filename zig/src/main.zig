@@ -1,17 +1,20 @@
 const std = @import("std");
 const chatbot = @import("chatbot.zig");
-const c = @cImport({
-    @cInclude("stdio.h");
-    @cInclude("string.h");
-    @cInclude("ctype.h");
-});
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    _ = c.printf("$ Chatbot v1.0.0!\n", );
+    // Zig 0.15 I/O: explicit buffer management
+    var stdout_buf: [4096]u8 = undefined;
+    var stdout = std.fs.File.stdout().writer(&stdout_buf);
+
+    var stdin_buf: [4096]u8 = undefined;
+    var stdin = std.fs.File.stdin().reader(&stdin_buf);
+
+    try stdout.interface.print("$ Chatbot v1.0.0!\n", .{});
+    try stdout.interface.flush();
 
     // Create hash table
     var ht = try chatbot.HashTable.create(allocator, 65536);
@@ -25,17 +28,22 @@ pub fn main() !void {
     try ht.set("light", "I like light");
     try ht.set("What", "It is clear, ain't it?");
 
-    var buf: [chatbot.LineLength]u8 = undefined;
-
     while (true) {
-        _ = c.printf("\n$ (user) ", );
+        try stdout.interface.print("\n$ (user) ", .{});
+        try stdout.interface.flush();
 
-        const result = c.fgets(&buf, chatbot.LineLength, c.stdin());
-        if (result == null) break;
+        // Read line using Zig 0.15 delimiter API
+        const line = stdin.interface.takeDelimiterExclusive('\n') catch |err| {
+            switch (err) {
+                error.EndOfStream => break,
+                error.StreamTooLong => {
+                    // Line too long, skip it
+                    continue;
+                },
+                else => return err,
+            }
+        };
 
-        if (@as(usize, c.strlen(&buf)) <= 1) break;
-
-        const line = buf[0..c.strlen(&buf)];
         const trimmed = std.mem.trim(u8, line, " \t\r\n");
         if (trimmed.len == 0) break;
 
@@ -45,8 +53,8 @@ pub fn main() !void {
             const lower_word = try allocator.alloc(u8, word.len);
             defer allocator.free(lower_word);
 
-            for (word, lower_word) |ch, *lch| {
-                lch.* = std.ascii.toLower(ch);
+            for (word, 0..) |ch, i| {
+                lower_word[i] = std.ascii.toLower(ch);
             }
 
             if (std.mem.eql(u8, lower_word, "exit")) {
@@ -54,10 +62,11 @@ pub fn main() !void {
             }
 
             if (ht.get(lower_word)) |response| {
-                _ = c.printf("\n$ (chatbot) %s\n", response.ptr);
+                try stdout.interface.print("\n$ (chatbot) {s}\n", .{response});
             } else {
-                _ = c.printf("\n$ (chatbot) %s\n", "Sorry, I don't know what to say about that");
+                try stdout.interface.print("\n$ (chatbot) {s}\n", .{"Sorry, I don't know what to say about that"});
             }
+            try stdout.interface.flush();
         }
     }
 }
