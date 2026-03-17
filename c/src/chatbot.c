@@ -12,6 +12,13 @@ static char *dup_str( const char *s ) {
   return copy;
 }
 
+/* ASCII-only in-place lowercasing. */
+static void ascii_lower( char *s ) {
+  for( unsigned char *p = (unsigned char *)s; *p; ++p ) {
+    if( *p >= 'A' && *p <= 'Z' ) *p = (unsigned char)(*p + ('a' - 'A'));
+  }
+}
+
 struct entry_s {
   char *key;
   char *value;
@@ -135,7 +142,7 @@ int main(void) {
   ht_set(hashtable, "hear", "What you heard is right");
   ht_set(hashtable, "python", "Yo, I love Python");
   ht_set(hashtable, "light", "I like light");
-  ht_set(hashtable, "What", "It is clear, ain't it?");
+  ht_set(hashtable, "what", "It is clear, ain't it?");
 
   int running = 1;
   while(running) {
@@ -146,6 +153,8 @@ int main(void) {
     word = strtok(line, SEPCHARS);
 
     while (word != NULL) {
+      ascii_lower(word);
+
       if (strcmp(word, "exit") == 0) {
         running = 0;
         break;
