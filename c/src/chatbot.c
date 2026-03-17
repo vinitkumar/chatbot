@@ -93,70 +93,34 @@ entry_t *ht_newpair( char *key, char *value ) {
 
 /* Insert a key-value pair into a hash table. */
 void ht_set( hashtable_t *hashtable, char *key, char *value ) {
-  int bin = 0;
-  entry_t *newpair = NULL;
-  entry_t *next = NULL;
-  entry_t *last = NULL;
+  int bin = ht_hash( hashtable, key );
 
-  bin = ht_hash( hashtable, key );
-
-  next = hashtable->table[ bin ];
-
-  while( next != NULL && next->key != NULL && strcmp( key, next->key ) > 0 ) {
-    last = next;
-    next = next->next;
-  }
-
-  /* There's already a pair.  Let's replace that string. */
-  if( next != NULL && next->key != NULL && strcmp( key, next->key ) == 0 ) {
-
-    char *new_value = strdup( value );
-    if( new_value == NULL ) return;
-    free( next->value );
-    next->value = new_value;
-
-  /* Nope, could't find it.  Time to grow a pair. */
-  } else {
-    newpair = ht_newpair( key, value );
-
-    /* We're at the start of the linked list in this bin. */
-    if( next == hashtable->table[ bin ] ) {
-      newpair->next = next;
-      hashtable->table[ bin ] = newpair;
-
-    /* We're at the end of the linked list in this bin. */
-    } else if ( next == NULL ) {
-      last->next = newpair;
-
-    /* We're in the middle of the list. */
-    } else  {
-      newpair->next = next;
-      last->next = newpair;
+  /* Walk the chain, update if key already exists. */
+  for( entry_t *e = hashtable->table[ bin ]; e != NULL; e = e->next ) {
+    if( strcmp( key, e->key ) == 0 ) {
+      char *new_value = strdup( value );
+      if( new_value == NULL ) return;
+      free( e->value );
+      e->value = new_value;
+      return;
     }
   }
+
+  /* Key not found, prepend new entry to chain. */
+  entry_t *newpair = ht_newpair( key, value );
+  if( newpair == NULL ) return;
+  newpair->next = hashtable->table[ bin ];
+  hashtable->table[ bin ] = newpair;
 }
 
 /* Retrieve a key-value pair from a hash table. */
 char *ht_get( hashtable_t *hashtable, char *key ) {
-  int bin = 0;
-  entry_t *pair;
+  int bin = ht_hash( hashtable, key );
 
-  bin = ht_hash( hashtable, key );
-
-  /* Step through the bin, looking for our value. */
-  pair = hashtable->table[ bin ];
-  while( pair != NULL && pair->key != NULL && strcmp( key, pair->key ) > 0 ) {
-    pair = pair->next;
+  for( entry_t *e = hashtable->table[ bin ]; e != NULL; e = e->next ) {
+    if( strcmp( key, e->key ) == 0 ) return e->value;
   }
-
-  /* Did we actually find anything? */
-  if( pair == NULL || pair->key == NULL || strcmp( key, pair->key ) != 0 ) {
-    return NULL;
-
-  } else {
-    return pair->value;
-  }
-
+  return NULL;
 }
 
 int main(void) {
