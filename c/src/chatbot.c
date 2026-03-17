@@ -137,23 +137,26 @@ int main(void) {
   ht_set(hashtable, "light", "I like light");
   ht_set(hashtable, "What", "It is clear, ain't it?");
 
-  while(1) {
+  int running = 1;
+  while(running) {
     printf("\n$ (user) ");
-    fgets(line, LINELENGTH, stdin);
-    if (strlen(line) <= 1) break; /*exit program*/
-    word = strtok(line, SEPCHARS); /*Find first word */
+
+    if (!fgets(line, LINELENGTH, stdin) || line[0] == '\n') break;
+
+    word = strtok(line, SEPCHARS);
 
     while (word != NULL) {
       if (strncasecmp(word, "exit", 150) == 0) {
-        exit(0);
+        running = 0;
+        break;
       }
-      // Some responses based on the keywords
-      if (ht_get(hashtable, word) != NULL) {
-        printf("\n$ (chatbot) %s\n", ht_get(hashtable, word));
-      } else {
-        printf("\n$ (chatbot) %s\n", "Sorry, I don't know what to say about that" );
-      }
+
+      char *reply = ht_get(hashtable, word);
+      printf("\n$ (chatbot) %s\n",
+             reply ? reply : "Sorry, I don't know what to say about that");
+
       word = strtok(NULL, SEPCHARS);
     }
   }
+  return 0;
 }
