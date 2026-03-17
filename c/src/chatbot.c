@@ -129,7 +129,7 @@ const char *ht_get( const hashtable_t *ht, const char *key ) {
 int main(void) {
   static const char sep[] = " *.,\"\n";
 
-  hashtable_t *ht = ht_create(65536);
+  hashtable_t *ht = ht_create(16);
   if( !ht ) { fputs("out of memory\n", stderr); return 1; }
 
   ht_put(ht, "hi",     "hello");
