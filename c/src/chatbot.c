@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-#include <limits.h>
+#include <stdint.h>
 #include "chatbot.h"
 
 // hash table implementation from here
@@ -55,20 +55,16 @@ hashtable_t *ht_create( int size ) {
   return hashtable;
 }
 
-/* Hash a string for a particular hash table. */
+/* FNV-1a hash: fast, well-distributed, single pass, no strlen call. */
 int ht_hash( hashtable_t *hashtable, char *key ) {
 
-  unsigned long int hashval = 0;
-  unsigned long i = 0;
-
-  /* Convert our string to an integer */
-  while( hashval < ULONG_MAX && i < strlen( key ) ) {
-    hashval = hashval << 8;
-    hashval += key[ i ];
-    i++;
+  uint64_t h = UINT64_C(14695981039346656037);
+  for( const unsigned char *p = (const unsigned char *)key; *p; ++p ) {
+    h ^= *p;
+    h *= UINT64_C(1099511628211);
   }
 
-  return hashval % hashtable->size;
+  return (int)(h % (unsigned)hashtable->size);
 }
 
 /* Create a key-value pair. */
