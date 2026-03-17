@@ -12,7 +12,7 @@ else
 endif
 
 CLANG := clang
-CFLAGS_COMMON = -Wall -Wextra -pedantic
+CFLAGS_COMMON = -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wstrict-prototypes -O2
 SRC = src/chatbot.c
 
 # Default targets
