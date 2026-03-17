@@ -1,16 +1,16 @@
-// Enable POSIX/GNU extensions (strdup, strncasecmp, etc.)
-// _GNU_SOURCE is needed because -std=c17 disables extensions by default
-#define _GNU_SOURCE
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <ctype.h>
 #include <stdint.h>
 #include "chatbot.h"
 
-// hash table implementation from here
-// https://gist.githubusercontent.com/tonious/1377667/raw/c814d0833c8699dc017871931a5c5bee11af0f64/hash.c
+/* Portable strdup replacement: pure ISO C, no _GNU_SOURCE needed. */
+static char *dup_str( const char *s ) {
+  size_t n = strlen( s ) + 1;
+  char *copy = malloc( n );
+  if( copy ) memcpy( copy, s, n );
+  return copy;
+}
 
 struct entry_s {
   char *key;
@@ -75,12 +75,12 @@ entry_t *ht_newpair( char *key, char *value ) {
     return NULL;
   }
 
-  if( ( newpair->key = strdup( key ) ) == NULL ) {
+  if( ( newpair->key = dup_str( key ) ) == NULL ) {
     free( newpair );
     return NULL;
   }
 
-  if( ( newpair->value = strdup( value ) ) == NULL ) {
+  if( ( newpair->value = dup_str( value ) ) == NULL ) {
     free( newpair->key );
     free( newpair );
     return NULL;
@@ -98,7 +98,7 @@ void ht_set( hashtable_t *hashtable, char *key, char *value ) {
   /* Walk the chain, update if key already exists. */
   for( entry_t *e = hashtable->table[ bin ]; e != NULL; e = e->next ) {
     if( strcmp( key, e->key ) == 0 ) {
-      char *new_value = strdup( value );
+      char *new_value = dup_str( value );
       if( new_value == NULL ) return;
       free( e->value );
       e->value = new_value;
@@ -146,7 +146,7 @@ int main(void) {
     word = strtok(line, SEPCHARS);
 
     while (word != NULL) {
-      if (strncasecmp(word, "exit", 150) == 0) {
+      if (strcmp(word, "exit") == 0) {
         running = 0;
         break;
       }
