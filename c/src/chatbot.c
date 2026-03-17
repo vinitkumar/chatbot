@@ -43,6 +43,7 @@ hashtable_t *ht_create( int size ) {
 
   /* Allocate pointers to the head nodes. */
   if( ( hashtable->table = malloc( sizeof( entry_t * ) * size ) ) == NULL ) {
+    free( hashtable );
     return NULL;
   }
   for( i = 0; i < size; i++ ) {
@@ -79,10 +80,13 @@ entry_t *ht_newpair( char *key, char *value ) {
   }
 
   if( ( newpair->key = strdup( key ) ) == NULL ) {
+    free( newpair );
     return NULL;
   }
 
   if( ( newpair->value = strdup( value ) ) == NULL ) {
+    free( newpair->key );
+    free( newpair );
     return NULL;
   }
 
@@ -110,8 +114,10 @@ void ht_set( hashtable_t *hashtable, char *key, char *value ) {
   /* There's already a pair.  Let's replace that string. */
   if( next != NULL && next->key != NULL && strcmp( key, next->key ) == 0 ) {
 
+    char *new_value = strdup( value );
+    if( new_value == NULL ) return;
     free( next->value );
-    next->value = strdup( value );
+    next->value = new_value;
 
   /* Nope, could't find it.  Time to grow a pair. */
   } else {
